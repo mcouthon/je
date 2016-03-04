@@ -14,11 +14,15 @@
 # limitations under the License.
 ############
 
+import datetime
+
 import colors
 import argh
+from argh.decorators import arg
 from path import path
 
 from clee.jenkins import jenkins
+from clee.completion import completion
 
 
 app = argh.EntryPoint('clee')
@@ -26,14 +30,39 @@ command = app
 
 
 @command
-@argh.named('list')
-def ls(job):
-    result = jenkins.list_builds(job)
-    import pprint
-    pprint.pprint(result)
+def list_jobs():
+    return jenkins.list_jobs()
 
 
 @command
+@argh.named('list')
+@arg('job', completer=completion.job_completer)
+def ls(job):
+    builds = jenkins.list_builds(job)
+    for build in builds:
+        result = build['result']
+        number = str(build['number'])
+        cause = build['cause']
+        timestamp = build['timestamp']
+        build_datetime = datetime.datetime.fromtimestamp(timestamp / 1000.0)
+        build_datetime = build_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+        if result == 'FAILURE':
+            build_color = colors.red
+        elif result == 'ABORTED':
+            build_color = colors.yellow
+        else:
+            build_color = colors.green
+
+        print '{:<4}{:<18}{} ({})'.format(number,
+                                          build_color(result),
+                                          cause,
+                                          build_datetime)
+
+
+@command
+@arg('job', completer=completion.job_completer)
+@arg('build', completer=completion.build_completer)
 def status(job, build, failed=False):
     current_dir = path('.').abspath()
     failed_dir = current_dir / 'failed'

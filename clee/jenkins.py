@@ -23,15 +23,29 @@ from clee.cache import cache
 
 class Jenkins(object):
 
-    def list_builds(self, job):
+    def list_jobs(self):
+        return self._query('view/core_tests/job/dir_system-tests',
+                           tree='jobs[name]')
+
+    def list_builds(self, job, only_number=False):
+        if only_number:
+            tree = 'builds[number]'
+        else:
+            tree = 'builds[number,result,actions[causes[shortDescription]],' \
+                   'timestamp,building]'
         builds = self._query(
             'view/core_tests/job/dir_system-tests/job/{}'.format(job),
-            tree='builds[number,result,actions[causes[shortDescription]]]')
+            tree=tree)
         results = []
         for build in builds['builds']:
             number = build['number']
+            if only_number:
+                results.append(number)
+                continue
             result = build['result']
             actions = build['actions']
+            timestamp = build['timestamp']
+            building = build['building']
             causes = []
             for action in actions:
                 action_causes = action.get('causes')
@@ -45,9 +59,11 @@ class Jenkins(object):
             results.append({
                 'number': number,
                 'result': result,
-                'cause': ', '.join(causes)
+                'cause': ', '.join(causes),
+                'timestamp': timestamp,
+                'building': building
             })
-        return results
+        return reversed(results)
 
     def fetch_build(self, job, build):
         build_key = '{}-{}'.format(job, build)
