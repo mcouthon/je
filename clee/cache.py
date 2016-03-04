@@ -25,11 +25,19 @@ class Cache(object):
     def cache_dir(self):
         return configuration.conf_dir / 'cache'
 
+    @property
+    def logs_dir(self):
+        return self.cache_dir / 'logs'
+
     def save(self, key, value):
         key_path = self._key_path(key)
         key_path.write_text(json.dumps(value,
                                        indent=2,
                                        sort_keys=True))
+
+    def save_log(self, key, value):
+        log_path = self._log_path(key)
+        log_path.write_text(value, encoding='utf8')
 
     def load(self, key):
         key_path = self._key_path(key)
@@ -37,11 +45,19 @@ class Cache(object):
             return None
         return json.loads(key_path.text())
 
-    def invalidate(self, key):
-        key_path = self._key_path(key)
-        if not key_path.exists():
-            return
-        key_path.remove()
+    def load_log(self, key):
+        log_path = self._log_path(key)
+        if not log_path.exists():
+            return ''
+        return log_path.text(encoding='utf8')
+
+    def clear(self):
+        self.cache_dir.rmtree_p()
+        self.cache_dir.mkdir()
+        self.logs_dir.mkdir()
+
+    def _log_path(self, key):
+        return self.logs_dir / '{}.log'.format(key)
 
     def _key_path(self, key):
         return self.cache_dir / '{}.json'.format(key)

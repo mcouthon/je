@@ -24,8 +24,7 @@ from clee.cache import cache
 class Jenkins(object):
 
     def list_jobs(self):
-        return self._query('view/core_tests/job/dir_system-tests',
-                           tree='jobs[name]')
+        return self._query('', tree='jobs[name]')
 
     def list_builds(self, job, only_number=False):
         if only_number:
@@ -33,9 +32,7 @@ class Jenkins(object):
         else:
             tree = 'builds[number,result,actions[causes[shortDescription]],' \
                    'timestamp,building]'
-        builds = self._query(
-            'view/core_tests/job/dir_system-tests/job/{}'.format(job),
-            tree=tree)
+        builds = self._query('job/{}'.format(job), tree=tree)
         results = []
         for build in builds['builds']:
             number = build['number']
@@ -71,8 +68,7 @@ class Jenkins(object):
         if cached_build:
             return cached_build
         print 'Build not in cache, retrieving from jenkins'
-        resource = 'view/core_tests/job/dir_system-tests/job/{}/{}'.format(
-            job, build)
+        resource = 'job/{}/{}'.format(job, build)
         build = self._query(
             resource,
             tree='actions['
@@ -83,26 +79,47 @@ class Jenkins(object):
                  'duration,'
                  'timestamp,'
                  'building')
-        test_report = self._query('{}/testReport'.format(resource))
+        building = build.get('building')
+        if not building:
+            test_report = self._query('{}/testReport'.format(resource))
+        else:
+            test_report = {}
         result = {
             'build': build,
             'test_report': test_report
         }
-        if not build.get('building'):
+        if not building:
             cache.save(build_key, result)
         return result
 
-    @staticmethod
-    def _query(resource, tree=None):
+    def fetch_build_logs(self, job, build):
+        build_key = '{}-{}'.format(job, build)
+        build_logs = cache.load_log(build_key)
+        if build_logs:
+            return build_logs
+        fetched_build = self.fetch_build(job, build)
+        print 'Logs not in cache, retrieving from jenkins'
+        resource = 'job/{}/{}/consoleText'.format(job, build)
+        response = self._raw_query(resource)
+        build_logs = response.text
+        if not fetched_build['build'].get('building'):
+            cache.save_log(build_key, build_logs)
+        return build_logs
+
+    def _query(self, resource, tree=None):
         if tree:
             tree = 'tree={}'.format(tree)
         else:
             tree = ''
-        url = '{}/{}/api/json?{}'.format(
-            configuration.jenkins_base_url,
-            resource,
-            tree)
-        response = requests.get(url, auth=(configuration.jenkins_username,
-                                           configuration.jenkins_password))
+        resource = '{}/api/json?{}'.format(resource, tree)
+        response = self._raw_query(resource)
         return response.json()
+
+    @staticmethod
+    def _raw_query(resource):
+        url = '{}/{}'.format(configuration.jenkins_base_url, resource)
+        return requests.get(url, auth=(configuration.jenkins_username,
+                                       configuration.jenkins_password))
+
+
 jenkins = Jenkins()

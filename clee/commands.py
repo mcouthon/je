@@ -22,6 +22,7 @@ from argh.decorators import arg
 from path import path
 
 from clee.jenkins import jenkins
+from clee.cache import cache
 from clee.completion import completion
 
 
@@ -41,13 +42,17 @@ def ls(job):
     builds = jenkins.list_builds(job)
     for build in builds:
         result = build['result']
+        building = build['building']
         number = str(build['number'])
         cause = build['cause']
         timestamp = build['timestamp']
         build_datetime = datetime.datetime.fromtimestamp(timestamp / 1000.0)
         build_datetime = build_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-        if result == 'FAILURE':
+        if building:
+            build_color = colors.white
+            result = 'BUILDING'
+        elif result == 'FAILURE':
             build_color = colors.red
         elif result == 'ABORTED':
             build_color = colors.yellow
@@ -63,14 +68,19 @@ def ls(job):
 @command
 @arg('job', completer=completion.job_completer)
 @arg('build', completer=completion.build_completer)
-def status(job, build, failed=False):
-    current_dir = path('.').abspath()
-    failed_dir = current_dir / 'failed'
-    passed_dir = current_dir / 'passed'
-    for d in [failed_dir, passed_dir]:
-        d.rmtree_p()
-        d.mkdir()
-    build = _fetch(job, build)
+def status(job, build, failed=False, output_files=False):
+    build_number = build
+    build = jenkins.fetch_build(job, build)
+    if build['build'].get('building'):
+        return 'Building is currently running'
+    files_dir = path('{}-{}'.format(job, build_number)).abspath()
+    failed_dir = files_dir / 'failed'
+    passed_dir = files_dir / 'passed'
+    if output_files:
+        files_dir.mkdir_p()
+        for d in [passed_dir, failed_dir]:
+            d.rmtree_p()
+            d.mkdir()
     report = build['test_report']
     for suite in report['suites']:
         suite_name = suite['name']
@@ -78,35 +88,39 @@ def status(job, build, failed=False):
         has_passed = False
         has_failed = False
         for case in suite['cases']:
-            status = case['status']
-            if status in ['FAILED', 'REGRESSION']:
-                status = 'FAILED'
-                status = colors.red(status)
+            test_status = case['status']
+            if test_status in ['FAILED', 'REGRESSION']:
+                test_status = 'FAILED'
+                colored_status = colors.red(test_status)
                 has_failed = True
-            elif status in ['PASSED', 'FIXED']:
-                status = 'PASSED'
-                status = colors.green(status)
+            elif test_status in ['PASSED', 'FIXED']:
+                test_status = 'PASSED'
+                colored_status = colors.green(test_status)
                 has_passed = True
-            elif status == 'SKIPPED':
-                status = colors.yellow(status)
+            elif test_status == 'SKIPPED':
+                colored_status = colors.yellow(test_status)
                 has_failed = True
+            else:
+                colored_status = test_status
             name = case['name']
-            if not failed or 'PASSED' not in status:
+            if not failed or test_status != 'PASSED':
                 cases.append('{:<18}{}'.format(
-                    status,
+                    colored_status,
                     name.split('@')[0]))
-            filename = name.replace(' ', '-')
-            dirname = passed_dir if 'PASSED' in status else failed_dir
-            with open(dirname / filename, 'w') as f:
-                f.write('name: {}\n\n'.format(case['name']))
-                f.write('status: {}\n\n'.format(case['status']))
-                f.write('class: {}\n\n'.format(case['className']))
-                f.write('duration: {}\n\n'.format(case['duration']))
-                f.write('error details: {}\n\n'.format(case['errorDetails']))
-                f.write('error stacktrace: {}\n\n'.format(
-                    case['errorStackTrace']))
-                f.write('stdout: \n{}\n\n'.format(case['stdout']))
-                f.write('stderr: \b{}\n\n'.format(case['stderr']))
+            if output_files:
+                filename = name.replace(' ', '-')
+                dirname = passed_dir if test_status == 'PASSED' else failed_dir
+                with open(dirname / filename, 'w') as f:
+                    f.write('name: {}\n\n'.format(case['name']))
+                    f.write('status: {}\n\n'.format(case['status']))
+                    f.write('class: {}\n\n'.format(case['className']))
+                    f.write('duration: {}\n\n'.format(case['duration']))
+                    f.write('error details: {}\n\n'.format(
+                        case['errorDetails']))
+                    f.write('error stacktrace: {}\n\n'.format(
+                        case['errorStackTrace']))
+                    f.write('stdout: \n{}\n\n'.format(case['stdout']))
+                    f.write('stderr: \b{}\n\n'.format(case['stderr']))
         if has_passed and has_failed:
             suite_name_color = colors.yellow
         elif has_passed:
@@ -120,7 +134,24 @@ def status(job, build, failed=False):
             print suite_name_color(colors.bold('-' * (len(suite_name))))
             print '\n'.join(cases)
             print
+    if output_files:
+        print 'Output files written to {}'.format(files_dir)
 
 
-def _fetch(job, build):
-    return jenkins.fetch_build(job, build)
+@command
+@arg('job', completer=completion.job_completer)
+@arg('build', completer=completion.build_completer)
+def logs(job, build, stdout=False):
+    result = jenkins.fetch_build_logs(job, build)
+    if stdout:
+        return result
+    else:
+        files_dir = path('{}-{}'.format(job, build)).abspath()
+        log_path = files_dir / 'console.log'
+        log_path.write_text(result, encoding='utf8')
+        print 'Log file written to {}'.format(log_path)
+
+
+@command
+def clear_cache():
+    cache.clear()

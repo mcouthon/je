@@ -40,4 +40,8 @@ class Configuration(object):
     @property
     def jenkins_password(self):
         return self.conf.get('jenkins_password')
+
+    @property
+    def jenkins_system_tests_base(self):
+        return self.conf.get('jenkins_system_tests_base')
 configuration = Configuration()
