@@ -97,7 +97,7 @@ def status(job, build, failed=False, output_files=False):
     report = build['test_report']
     if report.get('status') == 'error':
         return 'No tests report has been generated for this build'
-    files_dir = path('{}-{}'.format(job, build_number)).abspath()
+    files_dir = _files_dir(job, build_number)
     failed_dir = files_dir / 'failed'
     passed_dir = files_dir / 'passed'
     if output_files:
@@ -169,7 +169,8 @@ def logs(job, build, stdout=False):
     if stdout:
         return result
     else:
-        files_dir = path('{}-{}'.format(job, build)).abspath()
+        files_dir = _files_dir(job, build)
+        files_dir.mkdir_p()
         log_path = files_dir / 'console.log'
         log_path.write_text(result, encoding='utf8')
         print 'Log file written to {}'.format(log_path)
@@ -213,3 +214,13 @@ def build(job, branch=None, descriptor=None, source=None):
 @command
 def clear_cache():
     cache.clear()
+
+
+def _files_dir(job, build):
+    name = '{}-{}'.format(job, build)
+    files_dir = path('.').abspath()
+    while files_dir.dirname() != files_dir:
+        if files_dir.basename() == name:
+            return files_dir
+        files_dir = files_dir.dirname()
+    return path(name).abspath()
