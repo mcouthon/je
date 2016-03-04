@@ -26,6 +26,16 @@ class Jenkins(object):
     def list_jobs(self):
         return self._query('', tree='jobs[name]')
 
+    def build_job(self, job, parameters=None):
+        resource = 'job/{}/buildWithParameters'.format(job)
+        response = self._raw_query(resource=resource,
+                                   method='POST',
+                                   data=parameters)
+        if response.status_code != 201:
+            raise RuntimeError(
+                'Failed building job: {} [status={}, parameters={}]'
+                .format(job, response.status_code, parameters))
+
     def list_builds(self, job, only_number=False):
         if only_number:
             tree = 'builds[number]'
@@ -81,7 +91,10 @@ class Jenkins(object):
                  'building')
         building = build.get('building')
         if not building:
-            test_report = self._query('{}/testReport'.format(resource))
+            try:
+                test_report = self._query('{}/testReport'.format(resource))
+            except Exception:
+                test_report = {'status': 'error'}
         else:
             test_report = {}
         result = {
@@ -116,10 +129,12 @@ class Jenkins(object):
         return response.json()
 
     @staticmethod
-    def _raw_query(resource):
+    def _raw_query(resource, method='GET', data=None):
         url = '{}/{}'.format(configuration.jenkins_base_url, resource)
-        return requests.get(url, auth=(configuration.jenkins_username,
-                                       configuration.jenkins_password))
+        return requests.request(method, url,
+                                auth=(configuration.jenkins_username,
+                                      configuration.jenkins_password),
+                                data=data)
 
 
 jenkins = Jenkins()

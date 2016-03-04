@@ -16,6 +16,7 @@
 
 import datetime
 
+import yaml
 import colors
 import argh
 from argh.decorators import arg
@@ -75,6 +76,9 @@ def status(job, build, failed=False, output_files=False):
     build = jenkins.fetch_build(job, build)
     if build['build'].get('building'):
         return 'Building is currently running'
+    report = build['test_report']
+    if report.get('status') == 'error':
+        return 'No tests report has been generated for this build'
     files_dir = path('{}-{}'.format(job, build_number)).abspath()
     failed_dir = files_dir / 'failed'
     passed_dir = files_dir / 'passed'
@@ -83,7 +87,6 @@ def status(job, build, failed=False, output_files=False):
         for d in [passed_dir, failed_dir]:
             d.rmtree_p()
             d.mkdir()
-    report = build['test_report']
     for suite in report['suites']:
         suite_name = suite['name']
         cases = []
@@ -152,6 +155,41 @@ def logs(job, build, stdout=False):
         log_path = files_dir / 'console.log'
         log_path.write_text(result, encoding='utf8')
         print 'Log file written to {}'.format(log_path)
+
+
+@command
+@arg('job', completer=completion.job_completer)
+def build(job, branch=None, descriptor=None, source=None):
+    parameters = {}
+    if source:
+        source_path = path(source).expanduser()
+        if source_path.exists():
+            parameters = yaml.safe_load(source_path.text())
+        else:
+            try:
+                source = int(source)
+            except ValueError:
+                raise argh.CommandError('Invalid source: {}'.format(source))
+            fetched_build = jenkins.fetch_build(job, source)
+            actions = fetched_build['build']['actions']
+            for action in actions:
+                action_parameters = action.get('parameters')
+                if not action_parameters:
+                    continue
+                if not any([parameter.get('name') == 'system_tests_branch'
+                            for parameter in action_parameters]):
+                    continue
+                parameters = {p['name']: p['value'] for p in action_parameters}
+                break
+            else:
+                raise argh.CommandError('Invalid build: {}'.format(source))
+    if branch:
+        parameters['system_tests_branch'] = branch
+    if descriptor:
+        parameters['system_tests_descriptor'] = descriptor
+    jenkins.build_job(job, parameters=parameters)
+    print 'Build successfully queued [job={}, parameters={}]'.format(
+        job, parameters)
 
 
 @command
