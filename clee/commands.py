@@ -24,11 +24,29 @@ from path import path
 
 from clee.jenkins import jenkins
 from clee.cache import cache
+from clee.configuration import configuration
 from clee.completion import completion
 
 
 app = argh.EntryPoint('clee')
 command = app
+
+
+@command
+@arg('--jenkins-username', required=True)
+@arg('--jenkins-password', required=True)
+@arg('--jenkins-base_url', required=True)
+def init(jenkins_username=None,
+         jenkins_password=None,
+         jenkins_base_url=None,
+         jenkins_system_tests_base=None,
+         reset=False):
+    configuration.save(jenkins_username=jenkins_username,
+                       jenkins_password=jenkins_password,
+                       jenkins_base_url=jenkins_base_url,
+                       jenkins_system_tests_base=jenkins_system_tests_base,
+                       reset=reset)
+    cache.clear()
 
 
 @command

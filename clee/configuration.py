@@ -14,11 +14,34 @@
 # limitations under the License.
 ############
 
+import argh
+
 import yaml
 from path import path
 
 
 class Configuration(object):
+
+    def save(self,
+             jenkins_username,
+             jenkins_password,
+             jenkins_base_url,
+             jenkins_system_tests_base,
+             reset):
+        conf = self.conf_dir / 'config.yaml'
+        if conf.exists() and not reset:
+            raise argh.CommandError('Already initialized. '
+                                    'Run "clee init --reset"')
+        if jenkins_base_url.endswith('/'):
+            jenkins_base_url = jenkins_base_url[:-1]
+        if not jenkins_system_tests_base:
+            jenkins_system_tests_base = 'view/core_tests/job/dir_system-tests'
+        conf.write_text(yaml.safe_dump({
+            'jenkins_username': jenkins_username,
+            'jenkins_password': jenkins_password,
+            'jenkins_base_url': jenkins_base_url,
+            'jenkins_system_tests_base': jenkins_system_tests_base
+        }, default_flow_style=False))
 
     @property
     def conf_dir(self):
@@ -27,6 +50,8 @@ class Configuration(object):
     @property
     def conf(self):
         conf = self.conf_dir / 'config.yaml'
+        if not conf.exists():
+            raise argh.CommandError('Not initialized. Run "clee init"')
         return yaml.safe_load(conf.text())
 
     @property

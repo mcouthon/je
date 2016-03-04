@@ -130,11 +130,11 @@ class Jenkins(object):
 
     @staticmethod
     def _raw_query(resource, method='GET', data=None):
-        url = '{}/{}'.format(configuration.jenkins_base_url, resource)
+        url = '{}/{}/{}'.format(configuration.jenkins_base_url,
+                                configuration.jenkins_system_tests_base,
+                                resource)
         return requests.request(method, url,
                                 auth=(configuration.jenkins_username,
                                       configuration.jenkins_password),
                                 data=data)
-
-
 jenkins = Jenkins()
