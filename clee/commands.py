@@ -14,11 +14,11 @@
 # limitations under the License.
 ############
 
-import json
-
 import colors
 import argh
 from path import path
+
+from clee.jenkins import jenkins
 
 
 app = argh.EntryPoint('clee')
@@ -26,22 +26,26 @@ command = app
 
 
 @command
-def status(failed=False):
+@argh.named('list')
+def ls(job):
+    result = jenkins.list_builds(job)
+    import pprint
+    pprint.pprint(result)
+
+
+@command
+def status(job, build, failed=False):
     current_dir = path('.').abspath()
     failed_dir = current_dir / 'failed'
     passed_dir = current_dir / 'passed'
     for d in [failed_dir, passed_dir]:
         d.rmtree_p()
         d.mkdir()
-
-    with open(current_dir / 'out.json') as f:
-        report = json.load(f)
-
+    build = _fetch(job, build)
+    report = build['test_report']
     for suite in report['suites']:
         suite_name = suite['name']
-
         cases = []
-
         has_passed = False
         has_failed = False
         for case in suite['cases']:
@@ -62,7 +66,6 @@ def status(failed=False):
                 cases.append('{:<18}{}'.format(
                     status,
                     name.split('@')[0]))
-
             filename = name.replace(' ', '-')
             dirname = passed_dir if 'PASSED' in status else failed_dir
             with open(dirname / filename, 'w') as f:
@@ -71,21 +74,24 @@ def status(failed=False):
                 f.write('class: {}\n\n'.format(case['className']))
                 f.write('duration: {}\n\n'.format(case['duration']))
                 f.write('error details: {}\n\n'.format(case['errorDetails']))
-                f.write('error stacktrace: {}\n\n'.format(case['errorStackTrace']))
+                f.write('error stacktrace: {}\n\n'.format(
+                    case['errorStackTrace']))
                 f.write('stdout: \n{}\n\n'.format(case['stdout']))
                 f.write('stderr: \b{}\n\n'.format(case['stderr']))
-
         if has_passed and has_failed:
             suite_name_color = colors.yellow
         elif has_passed:
             suite_name_color = colors.green
-        elif  has_failed:
+        elif has_failed:
             suite_name_color = colors.red
         else:
             suite_name_color = colors.white
-
         if cases:
             print suite_name_color(colors.bold(suite_name))
             print suite_name_color(colors.bold('-' * (len(suite_name))))
             print '\n'.join(cases)
             print
+
+
+def _fetch(job, build):
+    return jenkins.fetch_build(job, build)
