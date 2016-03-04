@@ -77,7 +77,8 @@ class Jenkins(object):
         cached_build = cache.load(build_key)
         if cached_build:
             return cached_build
-        print 'Build not in cache, retrieving from jenkins'
+        print 'Build {} not in cache, ' \
+              'retrieving from jenkins'.format(build_key)
         resource = 'job/{}/{}'.format(job, build)
         build = self._query(
             resource,

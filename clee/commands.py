@@ -14,6 +14,7 @@
 # limitations under the License.
 ############
 
+import argparse
 import datetime
 
 import yaml
@@ -159,6 +160,87 @@ def status(job, build, failed=False, output_files=False):
             print
     if output_files:
         print 'Output files written to {}'.format(files_dir)
+
+
+@command
+@arg('job', completer=completion.job_completer)
+@arg('builds',
+     completer=completion.build_completer,
+     nargs=argparse.ONE_OR_MORE)
+def analyze(job, builds, passed_at_least_once=False, failed=False):
+    build_numbers = set()
+    for build in builds:
+        split = build.split('-')
+        if len(split) > 2:
+            raise argh.CommandError('Illegal build range: {}'.format(build))
+        elif len(split) == 1:
+            build_numbers.add(build)
+        else:
+            start, stop = int(split[0]), int(split[1])
+            build_numbers |= set(str(i) for i in range(start, stop+1))
+    builds = [jenkins.fetch_build(job, b) for b in build_numbers]
+    report = {}
+    for build in builds:
+        if build['build'].get('building'):
+            print 'Skipping build {} as it currently running'.format(
+                    build['number'])
+            continue
+        test_report = build['test_report']
+        if test_report.get('status') == 'error':
+            print 'Skipping build {} as no test reports were generated for it'\
+                .format(build['number'])
+        for suite in test_report['suites']:
+            suite_name = suite['name']
+            report_suite = report.get(suite_name, {})
+            for case in suite['cases']:
+                case_name = case['name'].split('@')[0]
+                test_status = case['status']
+                if test_status in ['FAILED', 'REGRESSION']:
+                    test_status = 'FAILED'
+                elif test_status in ['PASSED', 'FIXED']:
+                    test_status = 'PASSED'
+                report_case = report_suite.get(case_name, {})
+                report_case_status = report_case.get(test_status, 0)
+                report_case_status += 1
+                report_case[test_status] = report_case_status
+                report_suite[case_name] = report_case
+            report[suite_name] = report_suite
+    for suite_name, suite in report.items():
+        cases = []
+        suite_has_passed = False
+        suite_has_failed = False
+        for case_name, case in sorted(suite.items()):
+            pass_count = case.get('PASSED', 0)
+            fail_count = case.get('FAILED', 0)
+            skip_count = case.get('SKIPPED', 0)
+            case_has_failed = False
+            if pass_count and (fail_count or skip_count) \
+                    and not passed_at_least_once:
+                case_color = colors.yellow
+                suite_has_failed = case_has_failed = True
+            elif pass_count:
+                case_color = colors.green
+                suite_has_passed = True
+            else:
+                case_color = colors.red
+                suite_has_failed = case_has_failed = True
+            if not failed or case_has_failed:
+                cases.append('{} [passed={}, failed={}, skipped={}]'.
+                             format(case_color(case_name),
+                                    pass_count, fail_count, skip_count))
+        if suite_has_passed and suite_has_failed:
+            suite_name_color = colors.yellow
+        elif suite_has_passed:
+            suite_name_color = colors.green
+        elif suite_has_failed:
+            suite_name_color = colors.red
+        else:
+            suite_name_color = colors.white
+        if cases:
+            print suite_name_color(colors.bold(suite_name))
+            print suite_name_color(colors.bold('-' * (len(suite_name))))
+            print '\n'.join(cases)
+            print
 
 
 @command
