@@ -32,7 +32,9 @@ command = app
 
 @command
 def list_jobs():
-    return jenkins.list_jobs()
+    jobs = jenkins.list_jobs()
+    for job in jobs['jobs']:
+        print job.get('name')
 
 
 @command
