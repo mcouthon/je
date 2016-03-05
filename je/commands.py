@@ -276,11 +276,15 @@ def logs(job, build, stdout=False, tail=False):
             stream = sys.stdout
         else:
             stream = open(log_path, 'w')
-        for chunk in jenkins.tail_build_logs(job, build):
-            stream.write(chunk.encode(encoding='utf8'))
-            stream.flush()
-        if not stdout:
-            stream.close()
+        try:
+            for chunk in jenkins.tail_build_logs(job, build):
+                stream.write(chunk.encode(encoding='utf8'))
+                stream.flush()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if not stdout:
+                stream.close()
 
 
 @command
