@@ -24,13 +24,13 @@ import argh
 from argh.decorators import arg
 from path import path
 
-from clee.jenkins import jenkins
-from clee.cache import cache
-from clee.configuration import configuration
-from clee.completion import completion
+from jest.jenkins import jenkins
+from jest.cache import cache
+from jest.configuration import configuration
+from jest.completion import completion
 
 
-app = argh.EntryPoint('clee')
+app = argh.EntryPoint('jest')
 command = app
 
 

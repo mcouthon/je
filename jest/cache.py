@@ -16,7 +16,7 @@
 
 import json
 
-from clee.configuration import configuration
+from jest.configuration import configuration
 
 
 class Cache(object):

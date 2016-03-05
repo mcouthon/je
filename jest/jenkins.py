@@ -18,8 +18,8 @@ import time
 
 import requests
 
-from clee.configuration import configuration
-from clee.cache import cache
+from jest.configuration import configuration
+from jest.cache import cache
 
 
 class Jenkins(object):

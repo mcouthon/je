@@ -31,7 +31,7 @@ class Configuration(object):
         conf = self.conf_dir / 'config.yaml'
         if conf.exists() and not reset:
             raise argh.CommandError('Already initialized. '
-                                    'Run "clee init --reset"')
+                                    'Run "jest init --reset"')
         if jenkins_base_url.endswith('/'):
             jenkins_base_url = jenkins_base_url[:-1]
         if not jenkins_system_tests_base:
@@ -45,13 +45,13 @@ class Configuration(object):
 
     @property
     def conf_dir(self):
-        return path('~/.clee').expanduser()
+        return path('~/.jest').expanduser()
 
     @property
     def conf(self):
         conf = self.conf_dir / 'config.yaml'
         if not conf.exists():
-            raise argh.CommandError('Not initialized. Run "clee init"')
+            raise argh.CommandError('Not initialized. Run "jest init"')
         return yaml.safe_load(conf.text())
 
     @property
