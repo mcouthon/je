@@ -68,10 +68,7 @@ def ls(job):
         building = build['building']
         number = str(build['number'])
         cause = build['cause']
-        timestamp = build['timestamp']
-        build_datetime = datetime.datetime.fromtimestamp(timestamp / 1000.0)
-        build_datetime = build_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
+        build_datetime = _timestamp_to_datetime(build['timestamp'])
         if building:
             build_color = colors.white
             result = 'BUILDING'
@@ -81,7 +78,6 @@ def ls(job):
             build_color = colors.yellow
         else:
             build_color = colors.green
-
         print '{:<4}{:<18}{} ({})'.format(number,
                                           build_color(result),
                                           cause,
@@ -113,7 +109,10 @@ def status(job, build, failed=False, output_files=False):
     interesting_parameters = {k: v for k, v in build_parameters.items()
                               if k in interesting_parameters}
     cause = _extract_build_cause(build)
-    print '{}: {}'.format(colors.bold('Cause'), cause)
+    timestamp = build['timestamp']
+    print '{}: {} ({})'.format(colors.bold('Cause'),
+                               cause,
+                               _timestamp_to_datetime(timestamp))
     print
     print colors.bold('Parameters: ')
     print yaml.safe_dump(interesting_parameters, default_flow_style=False)
@@ -350,3 +349,8 @@ def _extract_build_cause(build):
                 continue
             causes.append(description)
     return ', '.join(causes)
+
+
+def _timestamp_to_datetime(timestamp):
+    datetime_obj = datetime.datetime.fromtimestamp(timestamp / 1000.0)
+    return datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
