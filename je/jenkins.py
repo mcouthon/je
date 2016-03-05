@@ -128,17 +128,18 @@ class Jenkins(object):
             yield build_logs
         else:
             resource = 'job/{}/{}/logText/progressiveText'.format(job, build)
-            response = self._raw_query(resource)
-            yield response.text
             next_index = 0
-            while response.headers.get('X-More-Data') == 'true':
+            while True:
+                response = self._raw_query(resource,
+                                           data={'start': next_index})
                 previous_index = next_index
                 next_index = int(response.headers.get('X-Text-Size'))
                 if previous_index == next_index:
                     time.sleep(1)
-                response = self._raw_query(resource,
-                                           data={'start': next_index})
-                yield response.text
+                else:
+                    yield response.text
+                if response.headers.get('X-More-Data') != 'true':
+                    break
 
     def _query(self, resource, tree=None):
         if tree:
