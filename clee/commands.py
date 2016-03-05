@@ -94,9 +94,10 @@ def ls(job):
 def status(job, build, failed=False, output_files=False):
     build_number = build
     build = jenkins.fetch_build(job, build)
-    if build['build'].get('building'):
-        return 'Building is currently running'
     report = build['test_report']
+    build = build['build']
+    if build.get('building'):
+        return 'Building is currently running'
     if report.get('status') == 'error':
         return 'No tests report has been generated for this build'
     files_dir = _files_dir(job, build_number)
@@ -107,6 +108,15 @@ def status(job, build, failed=False, output_files=False):
         for d in [passed_dir, failed_dir]:
             d.rmtree_p()
             d.mkdir()
+    build_parameters = _extract_build_parameters(build)
+    interesting_parameters = ['system_tests_branch', 'system_tests_descriptor']
+    interesting_parameters = {k: v for k, v in build_parameters.items()
+                              if k in interesting_parameters}
+    cause = _extract_build_cause(build)
+    print '{}: {}'.format(colors.bold('Cause'), cause)
+    print
+    print colors.bold('Parameters: ')
+    print yaml.safe_dump(interesting_parameters, default_flow_style=False)
     for suite in report['suites']:
         suite_name = suite['name']
         cases = []
@@ -288,18 +298,7 @@ def build(job, branch=None, descriptor=None, source=None):
             except ValueError:
                 raise argh.CommandError('Invalid source: {}'.format(source))
             fetched_build = jenkins.fetch_build(job, source)
-            actions = fetched_build['build']['actions']
-            for action in actions:
-                action_parameters = action.get('parameters')
-                if not action_parameters:
-                    continue
-                if not any([parameter.get('name') == 'system_tests_branch'
-                            for parameter in action_parameters]):
-                    continue
-                parameters = {p['name']: p['value'] for p in action_parameters}
-                break
-            else:
-                raise argh.CommandError('Invalid build: {}'.format(source))
+            parameters = _extract_build_parameters(fetched_build['build'])
     if branch:
         parameters['system_tests_branch'] = branch
     if descriptor:
@@ -322,3 +321,32 @@ def _files_dir(job, build):
             return files_dir
         files_dir = files_dir.dirname()
     return path(name).abspath()
+
+
+def _extract_build_parameters(build):
+    actions = build['actions']
+    for action in actions:
+        action_parameters = action.get('parameters')
+        if not action_parameters:
+            continue
+        if not any([parameter.get('name') == 'system_tests_branch'
+                    for parameter in action_parameters]):
+            continue
+        return {p['name']: p['value'] for p in action_parameters}
+    else:
+        raise argh.CommandError('Invalid build {}'.format(build['build']))
+
+
+def _extract_build_cause(build):
+    causes = []
+    actions = build['actions']
+    for action in actions:
+        action_causes = action.get('causes')
+        if not action_causes:
+            continue
+        for cause in action_causes:
+            description = cause.get('shortDescription')
+            if not description:
+                continue
+            causes.append(description)
+    return ', '.join(causes)
