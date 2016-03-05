@@ -14,25 +14,13 @@
 # limitations under the License.
 ############
 
-from jest.jenkins import jenkins
+import argh
+
+from je import commands
 
 
-class Completion(object):
+def main():
+    argh.dispatch_commands(commands.app.commands)
 
-    @staticmethod
-    def job_completer(prefix, **kwargs):
-        jobs = jenkins.list_jobs().get('jobs', [])
-        for j in jobs:
-            name = j.get('name')
-            if name.startswith(prefix):
-                yield name
-
-    @staticmethod
-    def build_completer(prefix, parsed_args, **kwargs):
-        job = parsed_args.job
-        builds = jenkins.list_builds(job, only_number=True)
-        for build in builds:
-            build = str(build)
-            if build.startswith(prefix):
-                yield build
-completion = Completion()
+if __name__ == '__main__':
+    main()

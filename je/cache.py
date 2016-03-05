@@ -16,7 +16,7 @@
 
 import json
 
-from jest.configuration import configuration
+from je.configuration import configuration
 
 
 class Cache(object):

@@ -18,11 +18,11 @@ from setuptools import setup
 
 
 setup(
-    name='jest',
+    name='je',
     version='0.1',
     author='GigaSpaces',
     author_email='cosmo-admin@gigaspaces.com',
-    packages=['jest'],
+    packages=['je'],
     description='Cloudify Almighty Wrapper',
     license='Apache License, Version 2.0',
     zip_safe=False,
@@ -34,7 +34,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'jest = jest.main:main',
+            'je = je.main:main',
         ],
     }
 )
