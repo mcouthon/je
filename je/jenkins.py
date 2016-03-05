@@ -16,6 +16,7 @@
 
 import time
 
+import argh
 import requests
 
 from je.configuration import configuration
@@ -33,7 +34,7 @@ class Jenkins(object):
                                    method='POST',
                                    data=parameters)
         if response.status_code != 201:
-            raise RuntimeError(
+            raise argh.CommandError(
                 'Failed building job: {} [status={}, parameters={}]'
                 .format(job, response.status_code, parameters))
 
@@ -155,8 +156,12 @@ class Jenkins(object):
         url = '{}/{}/{}'.format(configuration.jenkins_base_url,
                                 configuration.jenkins_system_tests_base,
                                 resource)
-        return requests.request(method, url,
-                                auth=(configuration.jenkins_username,
-                                      configuration.jenkins_password),
-                                data=data)
+        response = requests.request(method, url,
+                                    auth=(configuration.jenkins_username,
+                                          configuration.jenkins_password),
+                                    data=data)
+        if response.status_code == 404:
+            raise argh.CommandError('Resource not found. (404)'.format(
+                resource))
+        return response
 jenkins = Jenkins()

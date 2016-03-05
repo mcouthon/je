@@ -14,13 +14,25 @@
 # limitations under the License.
 ############
 
+import sys
+from StringIO import StringIO
+
 import argh
 
 from je import commands
 
 
 def main():
-    argh.dispatch_commands(commands.app.commands)
+    parser = argh.ArghParser()
+    subparsers_action = argh.utils.get_subparsers(parser, create=True)
+    subparsers_action.metavar = ''
+    parser.add_commands(commands.app.commands)
+    errors = StringIO()
+    parser.dispatch(errors_file=errors)
+    errors_value = errors.getvalue()
+    if errors_value:
+        errors_value = errors_value.replace('CommandError', 'error').strip()
+        sys.exit(errors_value)
 
 if __name__ == '__main__':
     main()
