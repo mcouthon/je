@@ -16,6 +16,7 @@
 
 import argparse
 import datetime
+import sys
 
 import yaml
 import colors
@@ -246,16 +247,31 @@ def analyze(job, builds, passed_at_least_once=False, failed=False):
 @command
 @arg('job', completer=completion.job_completer)
 @arg('build', completer=completion.build_completer)
-def logs(job, build, stdout=False):
-    result = jenkins.fetch_build_logs(job, build)
-    if stdout:
-        return result
-    else:
+def logs(job, build, stdout=False, tail=False):
+    if not stdout:
         files_dir = _files_dir(job, build)
         files_dir.mkdir_p()
         log_path = files_dir / 'console.log'
-        log_path.write_text(result, encoding='utf8')
-        print 'Log file written to {}'.format(log_path)
+    else:
+        log_path = None
+
+    if not tail:
+        result = jenkins.fetch_build_logs(job, build)
+        if stdout:
+            return result
+        else:
+            log_path.write_text(result, encoding='utf8')
+            print 'Log file written to {}'.format(log_path)
+    else:
+        if stdout:
+            stream = sys.stdout
+        else:
+            stream = open(log_path, 'w')
+        for chunk in jenkins.tail_build_logs(job, build):
+            stream.write(chunk.encode(encoding='utf8'))
+            stream.flush()
+        if not stdout:
+            stream.close()
 
 
 @command
