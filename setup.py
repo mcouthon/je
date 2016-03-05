@@ -19,11 +19,11 @@ from setuptools import setup
 
 setup(
     name='je',
-    version='0.4',
+    version='0.5',
     author='GigaSpaces',
     author_email='cosmo-admin@gigaspaces.com',
     packages=['je'],
-    description='Cloudify Almighty Wrapper',
+    description='jenkins system tests CLI',
     license='Apache License, Version 2.0',
     zip_safe=False,
     install_requires=[
