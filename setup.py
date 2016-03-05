@@ -19,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='je',
-    version='0.1',
+    version='0.2',
     author='GigaSpaces',
     author_email='cosmo-admin@gigaspaces.com',
     packages=['je'],
@@ -31,6 +31,7 @@ setup(
         'requests',
         'path.py',
         'argh',
+        'pyyaml'
     ],
     entry_points={
         'console_scripts': [
