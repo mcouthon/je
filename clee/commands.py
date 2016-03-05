@@ -308,6 +308,15 @@ def build(job, branch=None, descriptor=None, source=None):
 
 
 @command
+@arg('job', completer=completion.job_completer)
+@arg('build', completer=completion.build_completer)
+def parameters(job, build):
+    build = jenkins.fetch_build(job, build)
+    result = _extract_build_parameters(build['build'])
+    return yaml.safe_dump(result, default_flow_style=False)
+
+
+@command
 def clear_cache():
     cache.clear()
 
