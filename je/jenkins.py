@@ -132,6 +132,7 @@ class Jenkins(object):
             next_index = 0
             while True:
                 response = self._raw_query(resource,
+                                           method='POST',
                                            data={'start': next_index})
                 previous_index = next_index
                 next_index = int(response.headers.get('X-Text-Size'))
