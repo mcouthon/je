@@ -38,7 +38,7 @@ command = app
 @command
 @arg('--jenkins-username', required=True)
 @arg('--jenkins-password', required=True)
-@arg('--jenkins-base_url', required=True)
+@arg('--jenkins-base-url', required=True)
 def init(jenkins_username=None,
          jenkins_password=None,
          jenkins_base_url=None,
