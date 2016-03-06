@@ -28,6 +28,7 @@ from je.jenkins import jenkins
 from je.cache import cache
 from je.configuration import configuration
 from je.completion import completion
+from je.work import work
 
 
 app = argh.EntryPoint('je')
@@ -42,13 +43,15 @@ def init(jenkins_username=None,
          jenkins_password=None,
          jenkins_base_url=None,
          jenkins_system_tests_base=None,
+         workdir=None,
          reset=False):
     configuration.save(jenkins_username=jenkins_username,
                        jenkins_password=jenkins_password,
                        jenkins_base_url=jenkins_base_url,
                        jenkins_system_tests_base=jenkins_system_tests_base,
+                       workdir=workdir,
                        reset=reset)
-    cache.clear()
+    work.init()
 
 
 @command
@@ -87,7 +90,7 @@ def ls(job):
 @command
 @arg('job', completer=completion.job_completer)
 @arg('build', completer=completion.build_completer)
-def status(job, build, failed=False, output_files=False):
+def status(job, build, failed=False):
     build_number = build
     build = jenkins.fetch_build(job, build)
     report = build['test_report']
@@ -96,14 +99,11 @@ def status(job, build, failed=False, output_files=False):
         return 'Building is currently running'
     if report.get('status') == 'error':
         return 'No tests report has been generated for this build'
-    files_dir = _files_dir(job, build_number)
-    failed_dir = files_dir / 'failed'
-    passed_dir = files_dir / 'passed'
-    if output_files:
-        files_dir.mkdir_p()
-        for d in [passed_dir, failed_dir]:
-            d.rmtree_p()
-            d.mkdir()
+    failed_dir = work.failed_dir(job, build_number)
+    passed_dir = work.passed_dir(job, build_number)
+    for d in [passed_dir, failed_dir]:
+        d.rmtree_p()
+        d.mkdir()
     build_parameters = _extract_build_parameters(build)
     interesting_parameters = ['system_tests_branch', 'system_tests_descriptor']
     interesting_parameters = {k: v for k, v in build_parameters.items()
@@ -141,20 +141,19 @@ def status(job, build, failed=False, output_files=False):
                 cases.append('{:<18}{}'.format(
                     colored_status,
                     name.split('@')[0]))
-            if output_files:
-                filename = name.replace(' ', '-')
-                dirname = passed_dir if test_status == 'PASSED' else failed_dir
-                with open(dirname / filename, 'w') as f:
-                    f.write('name: {}\n\n'.format(case['name']))
-                    f.write('status: {}\n\n'.format(case['status']))
-                    f.write('class: {}\n\n'.format(case['className']))
-                    f.write('duration: {}\n\n'.format(case['duration']))
-                    f.write('error details: {}\n\n'.format(
-                        case['errorDetails']))
-                    f.write('error stacktrace: {}\n\n'.format(
-                        case['errorStackTrace']))
-                    f.write('stdout: \n{}\n\n'.format(case['stdout']))
-                    f.write('stderr: \b{}\n\n'.format(case['stderr']))
+            filename = '{}.log'.format(name.replace(' ', '-'))
+            dirname = passed_dir if test_status == 'PASSED' else failed_dir
+            with open(dirname / filename, 'w') as f:
+                f.write('name: {}\n\n'.format(case['name']))
+                f.write('status: {}\n\n'.format(case['status']))
+                f.write('class: {}\n\n'.format(case['className']))
+                f.write('duration: {}\n\n'.format(case['duration']))
+                f.write('error details: {}\n\n'.format(
+                    case['errorDetails']))
+                f.write('error stacktrace: {}\n\n'.format(
+                    case['errorStackTrace']))
+                f.write('stdout: \n{}\n\n'.format(case['stdout']))
+                f.write('stderr: \b{}\n\n'.format(case['stderr']))
         if has_passed and has_failed:
             suite_name_color = colors.yellow
         elif has_passed:
@@ -168,8 +167,8 @@ def status(job, build, failed=False, output_files=False):
             print suite_name_color(colors.bold('-' * (len(suite_name))))
             print '\n'.join(cases)
             print
-    if output_files:
-        print 'Output files written to {}'.format(files_dir)
+    print 'Output files written to {}'.format(work.build_dir(job,
+                                                             build_number))
 
 
 @command
@@ -257,13 +256,7 @@ def analyze(job, builds, passed_at_least_once=False, failed=False):
 @arg('job', completer=completion.job_completer)
 @arg('build', completer=completion.build_completer)
 def logs(job, build, stdout=False, tail=False):
-    if not stdout:
-        files_dir = _files_dir(job, build)
-        files_dir.mkdir_p()
-        log_path = files_dir / 'console.log'
-    else:
-        log_path = None
-
+    log_path = work.log_path(job, build)
     if not tail:
         result = jenkins.fetch_build_logs(job, build)
         if stdout:
@@ -276,6 +269,7 @@ def logs(job, build, stdout=False, tail=False):
             stream = sys.stdout
         else:
             stream = open(log_path, 'w')
+            print 'Log file written to {}'.format(log_path)
         try:
             for chunk in jenkins.tail_build_logs(job, build):
                 stream.write(chunk.encode(encoding='utf8'))
@@ -321,18 +315,19 @@ def parameters(job, build):
 
 
 @command
-def clear_cache():
-    cache.clear()
+def clear(force=False):
+    if not force:
+        raise argh.CommandError('clear will remove the cache directory and '
+                                'clean the work diretory. pass --force if '
+                                'this is indeed what you intend to do')
+    else:
+        cache.clear()
+        work.clear()
 
 
-def _files_dir(job, build):
-    name = '{}-{}'.format(job, build)
-    files_dir = path('.').abspath()
-    while files_dir.dirname() != files_dir:
-        if files_dir.basename() == name:
-            return files_dir
-        files_dir = files_dir.dirname()
-    return path(name).abspath()
+@command
+def workdir():
+    return configuration.workdir
 
 
 def _extract_build_parameters(build):
