@@ -29,6 +29,8 @@ class Configuration(object):
              jenkins_system_tests_base,
              workdir,
              reset):
+        if not self.conf_dir.exists():
+            self.conf_dir.mkdir()
         conf = self.conf_dir / 'config.yaml'
         if conf.exists() and not reset:
             raise argh.CommandError('Already initialized. '

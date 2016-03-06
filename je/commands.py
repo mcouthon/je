@@ -52,6 +52,7 @@ def init(jenkins_username=None,
                        workdir=workdir,
                        reset=reset)
     work.init()
+    cache.clear()
 
 
 @command

@@ -20,7 +20,8 @@ from je.configuration import configuration
 class Work(object):
 
     def init(self):
-        self.dir.mkdirs_p()
+        if not self.dir.exists():
+            self.dir.makedirs()
 
     def clear(self):
         for f in self.dir.walkfiles():
