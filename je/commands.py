@@ -90,7 +90,7 @@ def ls(job):
 @command
 @arg('job', completer=completion.job_completer)
 @arg('build', completer=completion.build_completer)
-def status(job, build, failed=False):
+def report(job, build, failed=False):
     build_number = build
     build = jenkins.fetch_build(job, build)
     report = build['test_report']
@@ -167,7 +167,7 @@ def status(job, build, failed=False):
             print suite_name_color(colors.bold('-' * (len(suite_name))))
             print '\n'.join(cases)
             print
-    print 'Output files written to {}'.format(work.build_dir(job,
+    print 'Report files written to {}'.format(work.build_dir(job,
                                                              build_number))
 
 
