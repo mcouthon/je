@@ -19,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='je',
-    version='0.11',
+    version='0.12',
     author='GigaSpaces',
     author_email='cosmo-admin@gigaspaces.com',
     packages=['je'],

@@ -90,10 +90,21 @@ def ls(job):
 
 @command
 @arg('job', completer=completion.job_completer)
-@arg('build', completer=completion.build_completer)
-def report(job, build, failed=False):
-    build_number = build
-    build = jenkins.fetch_build(job, build)
+@arg('builds',
+     completer=completion.build_completer,
+     nargs=argparse.ONE_OR_MORE)
+def report(job, builds, failed=False):
+    builds = _fetch_builds(job, builds)
+    num_builds = len(builds)
+    for index, (build_number, build) in enumerate(builds):
+        if num_builds > 1:
+            print '{0} {1}-{2} {0}'.format('=' * 30, job, build_number)
+        _build_report(job, build, build_number, failed)
+        if index < num_builds - 1:
+            print
+
+
+def _build_report(job, build, build_number, failed):
     report = build['test_report']
     build = build['build']
     if build.get('building'):
@@ -178,27 +189,18 @@ def report(job, build, failed=False):
      completer=completion.build_completer,
      nargs=argparse.ONE_OR_MORE)
 def analyze(job, builds, passed_at_least_once=False, failed=False):
-    build_numbers = set()
-    for build in builds:
-        split = build.split('-')
-        if len(split) > 2:
-            raise argh.CommandError('Illegal build range: {}'.format(build))
-        elif len(split) == 1:
-            build_numbers.add(build)
-        else:
-            start, stop = int(split[0]), int(split[1])
-            build_numbers |= set(str(i) for i in range(start, stop+1))
-    builds = [jenkins.fetch_build(job, b) for b in build_numbers]
+    builds = _fetch_builds(job, builds)
     report = {}
-    for build in builds:
+    for build_number, build in builds:
         if build['build'].get('building'):
             print 'Skipping build {} as it currently running'.format(
-                    build['number'])
+                build_number)
             continue
         test_report = build['test_report']
         if test_report.get('status') == 'error':
             print 'Skipping build {} as no test reports were generated for it'\
-                .format(build['number'])
+                .format(build_number)
+            continue
         for suite in test_report['suites']:
             suite_name = suite['name']
             report_suite = report.get(suite_name, {})
@@ -363,3 +365,18 @@ def _extract_build_cause(build):
 def _timestamp_to_datetime(timestamp):
     datetime_obj = datetime.datetime.fromtimestamp(timestamp / 1000.0)
     return datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def _fetch_builds(job, build_numbers):
+    numbers = set()
+    for build in build_numbers:
+        split = build.split('-')
+        if len(split) > 2:
+            raise argh.CommandError('Illegal build range: {}'.format(build))
+        elif len(split) == 1:
+            numbers.add(build)
+        else:
+            start, stop = int(split[0]), int(split[1])
+            numbers |= set(i for i in range(start, stop+1))
+    numbers = [str(s) for s in sorted([int(n) for n in numbers])]
+    return [(b, jenkins.fetch_build(job, b)) for b in numbers]
