@@ -149,10 +149,13 @@ def _build_report(job, build, build_number, failed):
             else:
                 colored_status = test_status
             name = case['name']
+            class_name = (case['className'] or '').split('.')[-1].strip()
+            if class_name:
+                name = '{}.{}'.format(class_name, name)
             if not failed or test_status != 'PASSED':
                 cases.append('{:<18}{}'.format(
                     colored_status,
-                    name.split('@')[0]))
+                    name.split('@')[0].strip()))
             filename = '{}.log'.format(name.replace(' ', '-'))
             dirname = passed_dir if test_status == 'PASSED' else failed_dir
             with open(dirname / filename, 'w') as f:
@@ -164,8 +167,10 @@ def _build_report(job, build, build_number, failed):
                     case['errorDetails']))
                 f.write('error stacktrace: {}\n\n'.format(
                     case['errorStackTrace']))
-                f.write('stdout: \n{}\n\n'.format(case['stdout']))
-                f.write('stderr: \b{}\n\n'.format(case['stderr']))
+                f.write('stdout: \n{}\n\n'.format(
+                    (case['stdout'] or '').encode('utf-8', errors='ignore')))
+                f.write('stderr: \n{}\n\n'.format(
+                    (case['stderr'] or '').encode('utf-8', errors='ignore')))
         if has_passed and has_failed:
             suite_name_color = colors.yellow
         elif has_passed:
@@ -205,7 +210,10 @@ def analyze(job, builds, passed_at_least_once=False, failed=False):
             suite_name = suite['name']
             report_suite = report.get(suite_name, {})
             for case in suite['cases']:
-                case_name = case['name'].split('@')[0]
+                case_name = case['name'].split('@')[0].strip()
+                class_name = (case['className'] or '').split('.')[-1].strip()
+                if class_name:
+                    case_name = '{}.{}'.format(class_name, case_name)
                 test_status = case['status']
                 if test_status in ['FAILED', 'REGRESSION']:
                     test_status = 'FAILED'
