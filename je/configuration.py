@@ -15,9 +15,11 @@
 ############
 
 import argh
-
+import shutil
 import yaml
 from path import path
+from inspect import getsourcefile
+import os
 
 
 class Configuration(object):
@@ -35,6 +37,12 @@ class Configuration(object):
         if conf.exists() and not reset:
             raise argh.CommandError('Already initialized. '
                                     'Run "je init --reset"')
+
+        known_errors_path = os.path.join(
+            os.path.dirname(getsourcefile(lambda: 0)),
+            'known_errors.yaml')
+        shutil.copy2(known_errors_path, self.conf_dir)
+
         if jenkins_base_url.endswith('/'):
             jenkins_base_url = jenkins_base_url[:-1]
         if not jenkins_system_tests_base:

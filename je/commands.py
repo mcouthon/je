@@ -24,6 +24,7 @@ import argh
 from argh.decorators import arg
 from path import path
 
+from je.errors import handle_failure
 from je.jenkins import jenkins
 from je.cache import cache
 from je.configuration import configuration
@@ -128,6 +129,7 @@ def _build_report(job, build, build_number, failed):
     print
     print colors.bold('Parameters: ')
     print yaml.safe_dump(interesting_parameters, default_flow_style=False)
+    colored_cause = colors.blue(' - CAUSE')
     for suite in report['suites']:
         suite_name = suite['name']
         cases = []
@@ -161,10 +163,13 @@ def _build_report(job, build, build_number, failed):
             with open(dirname / filename, 'w') as f:
                 f.write('name: {}\n\n'.format(case['name']))
                 f.write('status: {}\n\n'.format(case['status']))
+
+                if has_failed:
+                    handle_failure(cases, case, colored_cause, f)
+
                 f.write('class: {}\n\n'.format(case['className']))
                 f.write('duration: {}\n\n'.format(case['duration']))
-                f.write('error details: {}\n\n'.format(
-                    case['errorDetails']))
+                f.write('error details: {}\n\n'.format(case['errorDetails']))
                 f.write('error stacktrace: {}\n\n'.format(
                     case['errorStackTrace']))
                 f.write('stdout: \n{}\n\n'.format(
