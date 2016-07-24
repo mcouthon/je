@@ -15,11 +15,8 @@
 ############
 
 import argh
-import shutil
 import yaml
 from path import path
-from inspect import getsourcefile
-import os
 
 
 class Configuration(object):
@@ -28,6 +25,7 @@ class Configuration(object):
              jenkins_username,
              jenkins_password,
              jenkins_base_url,
+             known_errors_gist,
              jenkins_system_tests_base,
              workdir,
              reset):
@@ -37,12 +35,6 @@ class Configuration(object):
         if conf.exists() and not reset:
             raise argh.CommandError('Already initialized. '
                                     'Run "je init --reset"')
-
-        known_errors_path = os.path.join(
-            os.path.dirname(getsourcefile(lambda: 0)),
-            'known_errors.yaml')
-        shutil.copy2(known_errors_path, self.conf_dir)
-
         if jenkins_base_url.endswith('/'):
             jenkins_base_url = jenkins_base_url[:-1]
         if not jenkins_system_tests_base:
@@ -53,6 +45,7 @@ class Configuration(object):
             'jenkins_username': jenkins_username,
             'jenkins_password': jenkins_password,
             'jenkins_base_url': jenkins_base_url,
+            'known_errors_gist': known_errors_gist,
             'jenkins_system_tests_base': jenkins_system_tests_base,
             'workdir': str(workdir)
         }, default_flow_style=False))
@@ -83,6 +76,10 @@ class Configuration(object):
     @property
     def jenkins_system_tests_base(self):
         return self.conf.get('jenkins_system_tests_base')
+
+    @property
+    def known_errors_gist(self):
+        return self.conf.get('known_errors_gist')
 
     @property
     def workdir(self):

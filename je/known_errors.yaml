@@ -1,6 +1,0 @@
-- pattern: ".*'ec2.instance.run_instances' -> EC2ResponseError.*"
-  message: EC2 Error - No autorization for images
-- pattern: ".*'ec2.instance.run_instances' -> EC2ResponseError.*"
-  message: EC2 Error - Some other error
-- pattern: ".*ValueError: invalid literal.*"
-  message: No such file or directory
