@@ -36,8 +36,21 @@ def _match_stack_trace_to_errors(stack_trace):
     possible_causes = []
 
     for error in _known_errors:
-        if re.search(error['pattern'], stack_trace):
-                possible_causes.append(error['message'])
+        search = re.search(error['pattern'], stack_trace)
+        if search:
+            groups = []
+            group_ids = error.get('group_ids', list())
+            try:
+                for group_id in group_ids:
+                    groups.append(search.group(group_id))
+
+                message = error['message'].format(*groups)
+            except IndexError:
+                # IndexError will be raised if: a. group_id is out of range,
+                # or b. formatted message expects more items than len(groups)
+                continue
+
+            possible_causes.append(message)
 
     return possible_causes
 
@@ -58,6 +71,8 @@ def handle_failure(cases, case, colored_cause, log_file):
     stack_trace = case['errorDetails']
     if not stack_trace:
         return
+
+    stack_trace = stack_trace.replace('\r', '').replace('\n', '')
 
     # Load the list once and cache it in memory
     if not _known_errors:
